@@ -1,0 +1,150 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+html, body {
+  background: #000000;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+canvas {
+  background: #050b18;
+  display: block;
+}
+
+/* ======================================
+   PAINEL UPGRADE
+====================================== */
+#painel-upgrade {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.8;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 8px 10px;
+  border: 2px solid #ffcc00;
+  border-radius: 8px;
+  z-index: 9999;
+  min-width: 140px;
+  pointer-events: none;
+}
+#painel-upgrade .titulo {
+  color: #ffcc00;
+  font-weight: bold;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 4px;
+}
+#status-tiro {
+  color: #ffff00;
+  line-height: 1.8;
+  background: rgba(30, 30, 30, 0.9);
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid #333;
+}
+
+/* ======================================
+   PAINEL STATUS
+====================================== */
+#painel-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.8;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 8px 10px;
+  border: 2px solid #4488ff;
+  border-radius: 8px;
+  z-index: 9999;
+  min-width: 130px;
+  pointer-events: none;
+}
+#painel-status .titulo {
+  color: #4488ff;
+  font-weight: bold;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 4px;
+}
+#painel-status > div:nth-child(n+2) {
+  background: rgba(30, 30, 30, 0.9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  border: 1px solid #333;
+}
+#pontos { color: #ffffff; font-weight: bold; }
+#vidas  { color: #ff6666; font-weight: bold; }
+#fase   { color: #66ff88; font-weight: bold; }
+
+/* ======================================
+   CONTROLES DE TOQUE — MÓVEL
+====================================== */
+#controles-movel {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 9998;
+  pointer-events: none;
+}
+#area-movimento {
+  width: 140px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  pointer-events: auto;
+  position: relative;
+}
+#botao-atirar {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 204, 0, 0.3);
+  border-radius: 50%;
+  border: 3px solid #ffcc00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffcc00;
+  font-size: 14px;
+  font-weight: bold;
+  pointer-events: auto;
+  user-select: none;
+}
+#alavanca {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Esconde controles móveis em telas grandes */
+@media (min-width: 768px) {
+  #controles-movel { display: none; }
+}
