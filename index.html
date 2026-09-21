@@ -5,6 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Jogo de Naves</title>
   <link rel="stylesheet" href="estilo.css">
+  <style>
+    /* Fallback caso o arquivo CSS não carregue */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #tela {
+      display: block;
+      background: #050b18;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
 </head>
 <body>
   <canvas id="tela"></canvas>
