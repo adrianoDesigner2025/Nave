@@ -1,123 +1,109 @@
-/* =====================================================
-   RESET E BASE
-===================================================== */
+/* === RESET E BASE === */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+  font-family: 'Arial', sans-serif;
 }
 
-body {
-  background: #000;
+html, body {
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  font-family: Arial, sans-serif;
+  background: #020810;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
 }
 
-/* =====================================================
-   TELA DO JOGO
-===================================================== */
+/* === CANVAS === */
 #tela {
-  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: #050b18;
+  border: 2px solid #1a3050;
+  box-shadow: 0 0 30px rgba(0, 100, 200, 0.25);
   image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }
 
-/* =====================================================
-   PAINÉIS DE STATUS
-===================================================== */
+/* === PAINÉIS LATERAIS === */
 #painel-upgrade,
 #painel-status {
   position: absolute;
-  color: #fff;
-  background: rgba(0, 20, 40, 0.75);
-  border: 2px solid #3366cc;
+  top: 10px;
+  background: rgba(5, 15, 30, 0.85);
+  border: 1px solid #2a5080;
   border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 13px;
-  line-height: 1.5;
-  box-shadow: 0 0 12px rgba(51, 102, 204, 0.4);
-  z-index: 50;
+  padding: 12px;
+  color: #fff;
+  font-size: 14px;
+  min-width: 160px;
+  box-shadow: 0 0 15px rgba(42, 80, 128, 0.3);
+  z-index: 10;
 }
 
 #painel-upgrade {
-  top: 10px;
   left: 10px;
-  min-width: 140px;
 }
 
 #painel-status {
-  top: 10px;
   right: 10px;
-  min-width: 130px;
 }
 
 .titulo {
   font-weight: bold;
-  color: #ffdd00;
-  margin-bottom: 6px;
-  font-size: 14px;
-  border-bottom: 1px solid #3366cc;
-  padding-bottom: 4px;
+  font-size: 15px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #2a5080;
+  padding-bottom: 5px;
+  color: #8cf;
 }
 
-#pontos, #vidas, #fase {
-  font-weight: bold;
-  color: #00ff88;
-}
-
-/* =====================================================
-   BOTÃO DE PAUSA
-===================================================== */
-#botao-pausa {
+/* === BOTÃO PAUSA === */
+#btn-pausa {
   position: absolute;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #ffcc00, #ff8800);
+  background: linear-gradient(135deg, #2a5080, #3a70b0);
+  color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 22px;
-  font-size: 16px;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 15px;
   font-weight: bold;
   cursor: pointer;
-  z-index: 100;
-  box-shadow: 0 3px 12px rgba(255, 136, 0, 0.5);
+  z-index: 20;
+  box-shadow: 0 0 10px rgba(60, 150, 255, 0.4);
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-#botao-pausa:hover {
+#btn-pausa:hover {
   transform: translateX(-50%) scale(1.05);
-  box-shadow: 0 4px 16px rgba(255, 136, 0, 0.7);
+  box-shadow: 0 0 15px rgba(60, 150, 255, 0.6);
 }
 
-#botao-pausa:active {
-  transform: translateX(-50%) scale(0.97);
-}
-
-/* =====================================================
-   CONTROLES MÓVEIS
-===================================================== */
-#controles-movel {
+/* === CONTROLES MÓVEIS === */
+#ctrl-movel {
   position: absolute;
-  bottom: 20px;
+  bottom: 0;
   left: 0;
-  right: 0;
+  width: 100%;
+  padding: 15px;
   display: flex;
   justify-content: space-between;
-  padding: 0 20px;
+  align-items: flex-end;
   pointer-events: none;
-  z-index: 80;
+  z-index: 30;
 }
 
-#area-movimento {
-  width: 130px;
-  height: 130px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 3px solid rgba(255, 255, 255, 0.35);
+#area-mv {
+  width: 140px;
+  height: 140px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: 50%;
   position: relative;
   pointer-events: auto;
@@ -126,19 +112,19 @@ body {
 #alavanca {
   width: 50px;
   height: 50px;
-  background: rgba(255, 255, 255, 0.85);
+  background: linear-gradient(135deg, #4af, #28d);
   border-radius: 50%;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 12px rgba(68, 170, 255, 0.7);
 }
 
-#botao-atirar {
+#b-atirar {
   width: 110px;
   height: 110px;
-  background: linear-gradient(135deg, #ff3333, #ff6600);
+  background: linear-gradient(135deg, #fa2, #f52);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -147,60 +133,22 @@ body {
   font-weight: bold;
   font-size: 18px;
   pointer-events: auto;
-  box-shadow: 0 4px 15px rgba(255, 51, 0, 0.5);
-  border: 3px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 15px rgba(255, 85, 34, 0.5);
 }
 
-#botao-atirar:active {
-  transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(255, 51, 0, 0.6);
+#b-bomba {
+  pointer-events: auto;
 }
 
-/* =====================================================
-   AJUSTES PARA TELAS PEQUENAS
-===================================================== */
+/* === RESPONSIVIDADE === */
 @media (max-width: 850px) {
-  #painel-upgrade {
-    font-size: 11px;
-    padding: 6px 8px;
-    min-width: 110px;
-  }
-
+  #painel-upgrade,
   #painel-status {
-    font-size: 11px;
-    padding: 6px 8px;
-    min-width: 100px;
-  }
-
-  .titulo {
     font-size: 12px;
+    min-width: 130px;
+    padding: 8px;
   }
-
-  #botao-pausa {
-    padding: 6px 16px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 480px) {
-  #controles-movel {
-    padding: 0 10px;
-    bottom: 10px;
-  }
-
-  #area-movimento {
-    width: 110px;
-    height: 110px;
-  }
-
-  #alavanca {
-    width: 44px;
-    height: 44px;
-  }
-
-  #botao-atirar {
-    width: 95px;
-    height: 95px;
-    font-size: 16px;
+  .titulo {
+    font-size: 13px;
   }
 }
