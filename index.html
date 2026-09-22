@@ -2,36 +2,34 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Jogo de Naves</title>
   <link rel="stylesheet" href="estilo.css">
+  <style>
+    /* Fallback caso o arquivo CSS não carregue */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      background: #000;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #tela {
+      display: block;
+      background: #050b18;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+  </style>
 </head>
 <body>
-  <div class="jogo-container">
-    <div class="barra-status">
-      <div class="item-status">
-        <span>Pontos:</span>
-        <strong id="pontos">0</strong>
-      </div>
-      <div class="item-status">
-        <span>Fase:</span>
-        <strong id="fase">1</strong>
-      </div>
-      <div class="item-status">
-        <span>Vidas:</span>
-        <strong id="vidas">3</strong>
-      </div>
-      <div class="item-status">
-        <span>Bombas:</span>
-        <strong id="qtd-bombas">0</strong>
-      </div>
-    </div>
-    <canvas id="tela"></canvas>
-    <div class="controles">
-      <p>⬅️ ➡️ ou A/D: mover | ESPAÇO: atirar</p>
-    </div>
-  </div>
-
+  <canvas id="tela"></canvas>
   <script src="jogo.js"></script>
 </body>
 </html>
