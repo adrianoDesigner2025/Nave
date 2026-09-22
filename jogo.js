@@ -1,4 +1,594 @@
-g) * (2 + Math.random() * 2) * tamanho,
+// =====================================================
+// CONFIGURAÇÕES BASE
+// =====================================================
+const TELA_BASE_LARGURA = 800;
+const TELA_BASE_ALTURA = 600;
+const LINHA_NAVE = TELA_BASE_ALTURA - 100;
+let escala = 1;
+let TELA_LARGURA = TELA_BASE_LARGURA;
+let TELA_ALTURA = TELA_BASE_ALTURA;
+const canvas = document.getElementById('tela');
+const ctx = canvas.getContext('2d');
+// =====================================================
+// DETECTAR DISPOSITIVO MÓVEL
+// =====================================================
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                  ('ontouchstart' in window) ||
+                  (navigator.maxTouchPoints > 0);
+// =====================================================
+// CRIAR PAINEIS DINAMICAMENTE
+// =====================================================
+function criarPaineis() {
+  const painelUpgrade = document.createElement('div');
+  painelUpgrade.id = 'painel-upgrade';
+  painelUpgrade.innerHTML =     <div class="titulo" id="titulo-tiro">🔫 Tiro</div>     <div id="status-tiro"></div>     <div id="status-bombas" style="margin-top:8px;">💣 Bombas: <span id="qtd-bombas">0</span>/3</div>     <div id="status-escudo" style="margin-top:8px;display:none;">🛡️ Escudo: <span id="escudo-vidas">3</span>/3</div>  ;
+  document.body.appendChild(painelUpgrade);
+  const painelStatus = document.createElement('div');
+  painelStatus.id = 'painel-status';
+  painelStatus.innerHTML =     <div class="titulo">📊 Status</div>     <div>Pontos: <span id="pontos">0</span></div>     <div>Vidas: <span id="vidas">3</span></div>     <div>Fase: <span id="fase">1</span></div>  ;
+  document.body.appendChild(painelStatus);
+  const botaoPausa = document.createElement('button');
+  botaoPausa.id = 'botao-pausa';
+  botaoPausa.innerHTML = '⏸️ Pausa';
+  botaoPausa.addEventListener('click', alternarPausa);
+  document.body.appendChild(botaoPausa);
+  if (isMobile) {
+    const controles = document.createElement('div');
+    controles.id = 'controles-movel';
+    controles.innerHTML =       <div id="area-movimento"><div id="alavanca"></div></div>       <div style="display:flex;gap:10px;align-items:center;">         <button id="botao-bomba" style="width:70px;height:70px;background:linear-gradient(135deg,#ff2222,#ff6600);border-radius:50%;border:none;color:#fff;font-weight:bold;display:none;cursor:pointer;">💣</button>         <div id="botao-atirar">ATIRAR</div>       </div>    ;
+    document.body.appendChild(controles);
+    configurarControlesMovel();
+  }
+}
+// =====================================================
+// SISTEMA DE PAUSA
+// =====================================================
+let jogoPausado = false;
+function alternarPausa() {
+  if (jogo.gameOver || jogoVitoria) return;
+  jogoPausado = !jogoPausado;
+  const botao = document.getElementById('botao-pausa');
+  if (botao) {
+    botao.innerHTML = jogoPausado ? '▶️ Retomar' : '⏸️ Pausa';
+  }
+  if (jogoPausado) {
+    segurandoEspaco = false;
+    if (intervaloTiroTeclado) {
+      clearInterval(intervaloTiroTeclado);
+      intervaloTiroTeclado = null;
+    }
+    segurandoTiro = false;
+    if (intervaloTiroContinuo) {
+      clearInterval(intervaloTiroContinuo);
+      intervaloTiroContinuo = null;
+    }
+  }
+}
+// =====================================================
+// CONTROLES DE TOQUE — MÓVEL
+// =====================================================
+let toqueAtivo = null;
+let alavanca = null;
+let areaMovimento = null;
+let segurandoTiro = false;
+let intervaloTiroContinuo = null;
+function configurarControlesMovel() {
+  areaMovimento = document.getElementById('area-movimento');
+  alavanca = document.getElementById('alavanca');
+  const botaoAtirar = document.getElementById('botao-atirar');
+  const botaoBomba = document.getElementById('botao-bomba');
+  if (areaMovimento) {
+    areaMovimento.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      iniciarAudio();
+      const toque = e.changedTouches[0];
+      toqueAtivo = { x: toque.clientX, y: toque.clientY };
+      atualizarAlavanca(toque.clientX, toque.clientY);
+    });
+    areaMovimento.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!toqueAtivo) return;
+      const toque = e.changedTouches[0];
+      atualizarAlavanca(toque.clientX, toque.clientY);
+    });
+    ['touchend', 'touchcancel'].forEach(evt => {
+      areaMovimento.addEventListener(evt, (e) => {
+        e.preventDefault();
+        toqueAtivo = null;
+        teclas['ArrowLeft'] = false;
+        teclas['ArrowRight'] = false;
+        if (alavanca) alavanca.style.transform = 'translate(-50%, -50%)';
+      });
+    });
+  }
+  if (botaoAtirar) {
+    botaoAtirar.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      iniciarAudio();
+      if (jogo.gameOver) {
+        reiniciarJogo();
+        return;
+      }
+      if (jogoPausado) {
+        alternarPausa();
+        return;
+      }
+      if (!jogoPausado) {
+        segurandoTiro = true;
+        atirar();
+        intervaloTiroContinuo = setInterval(() => {
+          if (segurandoTiro && !jogoPausado && !jogo.gameOver && !jogoVitoria) atirar();
+        }, Math.max(jogo.cadencia, 120));
+      }
+    });
+    botaoAtirar.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      segurandoTiro = false;
+      if (intervaloTiroContinuo) {
+        clearInterval(intervaloTiroContinuo);
+        intervaloTiroContinuo = null;
+      }
+    });
+  }
+  if (botaoBomba) {
+    botaoBomba.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      usarBomba();
+    });
+  }
+}
+function atualizarAlavanca(clientX, clientY) {
+  if (!areaMovimento || !alavanca) return;
+  const rect = areaMovimento.getBoundingClientRect();
+  const centroX = rect.left + rect.width / 2;
+  const maxDesloc = rect.width / 2 - 25;
+  let deslocX = clientX - centroX;
+  deslocX = Math.max(-maxDesloc, Math.min(maxDesloc, deslocX));
+  const fator = deslocX / maxDesloc;
+  teclas['ArrowLeft'] = fator < -0.1;
+  teclas['ArrowRight'] = fator > 0.1;
+  alavanca.style.transform = translate(calc(-50% + ${deslocX}px), -50%);
+}
+// =====================================================
+// ÁUDIO E MÚSICA
+// =====================================================
+let musicaFundo = null;
+try {
+  musicaFundo = new Audio('boogie.mp3');
+  musicaFundo.loop = true;
+  musicaFundo.volume = 0.20;
+} catch(e) {
+  console.log('⚠️ Arquivo de música não encontrado');
+}
+let contextoAudio = null;
+function iniciarAudio() {
+  if (!contextoAudio) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    contextoAudio = new AudioContext();
+  }
+  if (musicaFundo && musicaFundo.paused) {
+    musicaFundo.play().catch(() => {});
+  }
+}
+function somTiro(tipo = 'AMARELO') {
+  if (!contextoAudio) return;
+  const som = contextoAudio.createOscillator();
+  const volume = contextoAudio.createGain();
+  som.connect(volume);
+  volume.connect(contextoAudio.destination);
+  switch(tipo) {
+    case 'AMARELO':
+      som.type = 'sine';
+      som.frequency.setValueAtTime(880, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(440, contextoAudio.currentTime + 0.08);
+      volume.gain.setValueAtTime(0.15, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.12);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.15);
+      break;
+    case 'VERDE':
+      som.type = 'triangle';
+      som.frequency.setValueAtTime(660, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(880, contextoAudio.currentTime + 0.10);
+      volume.gain.setValueAtTime(0.18, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.15);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.18);
+      break;
+    case 'AZUL':
+      som.type = 'sine';
+      som.frequency.setValueAtTime(523, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(1047, contextoAudio.currentTime + 0.12);
+      volume.gain.setValueAtTime(0.20, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.20);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.20);
+      break;
+    case 'ROXO':
+      som.type = 'sawtooth';
+      som.frequency.setValueAtTime(440, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(700, contextoAudio.currentTime + 0.15);
+      volume.gain.setValueAtTime(0.16, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.22);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.22);
+      break;
+    case 'LARANJA':
+      som.type = 'square';
+      som.frequency.setValueAtTime(330, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(220, contextoAudio.currentTime + 0.10);
+      volume.gain.setValueAtTime(0.22, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.15);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.18);
+      break;
+    case 'ESCUDO':
+      som.type = 'triangle';
+      som.frequency.setValueAtTime(523, contextoAudio.currentTime);
+      som.frequency.setValueAtTime(659, contextoAudio.currentTime + 0.1);
+      som.frequency.setValueAtTime(784, contextoAudio.currentTime + 0.2);
+      volume.gain.setValueAtTime(0.25, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.3);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.3);
+      break;
+    case 'ESCUDO_DANO':
+      som.type = 'sine';
+      som.frequency.setValueAtTime(320, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(150, contextoAudio.currentTime + 0.15);
+      volume.gain.setValueAtTime(0.3, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.2);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.2);
+      break;
+    case 'BOMBA':
+      som.type = 'sawtooth';
+      som.frequency.setValueAtTime(150, contextoAudio.currentTime);
+      som.frequency.exponentialRampToValueAtTime(30, contextoAudio.currentTime + 0.4);
+      volume.gain.setValueAtTime(0.8, contextoAudio.currentTime);
+      volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.5);
+      som.start(contextoAudio.currentTime);
+      som.stop(contextoAudio.currentTime + 0.5);
+      break;
+  }
+}
+function somExplosao(tamanho = 1) {
+  if (!contextoAudio) return;
+  const som = contextoAudio.createOscillator();
+  const volume = contextoAudio.createGain();
+  som.connect(volume);
+  volume.connect(contextoAudio.destination);
+  som.type = 'sawtooth';
+  som.frequency.setValueAtTime(120 * tamanho, contextoAudio.currentTime);
+  som.frequency.exponentialRampToValueAtTime(30, contextoAudio.currentTime + 0.28 * tamanho);
+  volume.gain.setValueAtTime(0.70 * tamanho, contextoAudio.currentTime);
+  volume.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.35 * tamanho);
+  som.start(contextoAudio.currentTime);
+  som.stop(contextoAudio.currentTime + 0.4 * tamanho);
+}
+function somColetarCoracao() {
+  if (!contextoAudio) return;
+  const o = contextoAudio.createOscillator();
+  const g = contextoAudio.createGain();
+  o.connect(g); g.connect(contextoAudio.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(523, contextoAudio.currentTime);
+  o.frequency.setValueAtTime(659, contextoAudio.currentTime + 0.1);
+  o.frequency.setValueAtTime(784, contextoAudio.currentTime + 0.2);
+  g.gain.setValueAtTime(0, contextoAudio.currentTime);
+  g.gain.linearRampToValueAtTime(0.25, contextoAudio.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.4);
+  o.start(contextoAudio.currentTime);
+  o.stop(contextoAudio.currentTime + 0.4);
+}
+function somColetarBomba() {
+  if (!contextoAudio) return;
+  const o = contextoAudio.createOscillator();
+  const g = contextoAudio.createGain();
+  o.connect(g); g.connect(contextoAudio.destination);
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(220, contextoAudio.currentTime);
+  o.frequency.exponentialRampToValueAtTime(110, contextoAudio.currentTime + 0.2);
+  g.gain.setValueAtTime(0, contextoAudio.currentTime);
+  g.gain.linearRampToValueAtTime(0.2, contextoAudio.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.25);
+  o.start(contextoAudio.currentTime);
+  o.stop(contextoAudio.currentTime + 0.25);
+}
+function somColetarEscudo() {
+  if (!contextoAudio) return;
+  const o = contextoAudio.createOscillator();
+  const g = contextoAudio.createGain();
+  o.connect(g); g.connect(contextoAudio.destination);
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(392, contextoAudio.currentTime);
+  o.frequency.setValueAtTime(523, contextoAudio.currentTime + 0.15);
+  g.gain.setValueAtTime(0, contextoAudio.currentTime);
+  g.gain.linearRampToValueAtTime(0.22, contextoAudio.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.35);
+  o.start(contextoAudio.currentTime);
+  o.stop(contextoAudio.currentTime + 0.35);
+}
+function somColetarTiro() {
+  if (!contextoAudio) return;
+  const o = contextoAudio.createOscillator();
+  const g = contextoAudio.createGain();
+  o.connect(g); g.connect(contextoAudio.destination);
+  o.type = 'square';
+  o.frequency.setValueAtTime(440, contextoAudio.currentTime);
+  o.frequency.setValueAtTime(587, contextoAudio.currentTime + 0.08);
+  g.gain.setValueAtTime(0, contextoAudio.currentTime);
+  g.gain.linearRampToValueAtTime(0.18, contextoAudio.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.2);
+  o.start(contextoAudio.currentTime);
+  o.stop(contextoAudio.currentTime + 0.2);
+}
+function somSubirNivel() {
+  if (!contextoAudio) return;
+  const o = contextoAudio.createOscillator();
+  const g = contextoAudio.createGain();
+  o.connect(g); g.connect(contextoAudio.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(330, contextoAudio.currentTime);
+  o.frequency.setValueAtTime(440, contextoAudio.currentTime + 0.1);
+  o.frequency.setValueAtTime(554, contextoAudio.currentTime + 0.2);
+  g.gain.setValueAtTime(0, contextoAudio.currentTime);
+  g.gain.linearRampToValueAtTime(0.2, contextoAudio.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, contextoAudio.currentTime + 0.3);
+  o.start(contextoAudio.currentTime);
+  o.stop(contextoAudio.currentTime + 0.3);
+}
+// =====================================================
+// TELA RESPONSIVA
+// =====================================================
+function ajustarTela() {
+  const janelaLargura = window.innerWidth;
+  const janelaAltura = window.innerHeight;
+  const escalaX = janelaLargura / TELA_BASE_LARGURA;
+  const escalaY = janelaAltura / TELA_BASE_ALTURA;
+  escala = Math.min(escalaX, escalaY);
+  TELA_LARGURA = Math.round(TELA_BASE_LARGURA * escala);
+  TELA_ALTURA = Math.round(TELA_BASE_ALTURA * escala);
+  canvas.width = TELA_BASE_LARGURA;
+  canvas.height = TELA_BASE_ALTURA;
+  canvas.style.width = ${TELA_LARGURA}px;
+  canvas.style.height = ${TELA_ALTURA}px;
+  canvas.style.position = 'absolute';
+  canvas.style.left = ${(janelaLargura - TELA_LARGURA) / 2}px;
+  canvas.style.top = ${(janelaAltura - TELA_ALTURA) / 2}px;
+}
+window.addEventListener('resize', ajustarTela);
+// =====================================================
+// SPRITES
+// =====================================================
+const spriteNave = new Image();
+spriteNave.src = 'SF.png';
+spriteNave.onerror = () => console.log('⚠️ Imagem SF.png não encontrada');
+const spriteInimigo = new Image();
+spriteInimigo.src = '1.png';
+spriteInimigo.onerror = () => console.log('⚠️ Imagem 1.png não encontrada');
+// =====================================================
+// ESTRELAS DE FUNDO
+// =====================================================
+const estrelas = [];
+const NUM_ESTRELAS = 150;
+function criarEstrelas() {
+  estrelas.length = 0;
+  for (let i = 0; i < NUM_ESTRELAS; i++) {
+    estrelas.push({
+      x: Math.random() * TELA_BASE_LARGURA,
+      y: Math.random() * TELA_BASE_ALTURA,
+      tamanho: Math.random() * 2 + 0.5,
+      velocidade: Math.random() * 2 + 0.5,
+      brilho: Math.random() * 0.8 + 0.2,
+      cor: ['#fff','#f0f8ff','#ffefd5','#ffd700','#ff6347','#87ceeb'][Math.floor(Math.random()*6)]
+    });
+  }
+}
+// =====================================================
+// TIPOS DO JOGO
+// =====================================================
+const TIPOS_TIRO = {
+  AMARELO: { nome: 'Tiro Reto', cor: '#ffff00', formato: 'reto', chave: 'AMARELO' },
+  VERDE: { nome: 'Tiro Duplo', cor: '#00ff88', formato: 'reto', chave: 'VERDE' },
+  AZUL: { nome: 'Tiro Espalhado', cor: '#00aaff', formato: 'espalhado', chave: 'AZUL' },
+  ROXO: { nome: 'Tiro Curvo', cor: '#ff00ff', formato: 'curvo', chave: 'ROXO' },
+  LARANJA: { nome: 'Tiro Explosivo', cor: '#ff8800', formato: 'explosivo', chave: 'LARANJA' }
+};
+const TIPOS_INIMIGOS = {
+  FRACO: { vidaMax: 1, cor: '#66ff66', pontos: 10, tamanho: 32 },
+  NORMAL: { vidaMax: 2, cor: '#ffcc00', pontos: 25, tamanho: 38 },
+  FORTE:  { vidaMax: 4, cor: '#ff6600', pontos: 50, tamanho: 44 },
+  CHEFE:  { vidaMax: 8, cor: '#ff0044', pontos: 150, tamanho: 52 }
+};
+const TIPO_ITEM_ESCUDO = { ehEscudo: true, cor: '#00ccff', nome: 'Escudo' };
+const TIPO_ITEM_BOMBA = { ehBomba: true, cor: '#ff3300', nome: 'Bomba' };
+const TIPO_ITEM_CORACAO = { ehCoracao: true, cor: '#ff3366', nome: 'Vida Completa' };
+// =====================================================
+// VARIÁVEIS GLOBAIS
+// =====================================================
+const TIROS_POR_VIDA = 5;
+let jogo = {
+  pontos: 0, vidas: 3, vidaAtual: TIROS_POR_VIDA,
+  fase: 1, gameOver: false,
+  tipoTiroAtual: TIPOS_TIRO.AMARELO, nivelPoder: 1, danoPorTiro: 1,
+  cadencia: 280, tempoProximoItem: 3000,
+  escudo: null, bombas: 0,
+  chefeAtivo: false, chefe: null, avisoChefeMostrado: false
+};
+// =====================================================
+// VITÓRIA — MISSÃO CUMPRIDA
+// =====================================================
+let jogoVitoria = false;
+let tempoVitoria = 0;
+let teclas = {};
+let segurandoEspaco = false;
+let intervaloTiroTeclado = null;
+const jogador = {
+  x: TELA_BASE_LARGURA / 2 - 25, y: TELA_BASE_ALTURA - 80,
+  largura: 50, altura: 50, velocidade: 7,
+  tiros: [], podeAtirar: true,
+  inclinacaoRolamento: 0, inclinacaoMax: 0.45, suavidade: 0.12
+};
+let inimigos = [], tirosInimigos = [], explosoes = [], itensUpgrade = [];
+let ultimoTempo = 0, tempoAcumulado = 0;
+// =====================================================
+// AVANÇAR PARA PRÓXIMA FASE — CICLO COMPLETO
+// =====================================================
+function avancarParaProximaFase() {
+  jogoVitoria = false;
+  // Avança a fase — NÃO zera!
+  jogo.fase++;
+  // Recupera 1 vida se estiver faltando
+  if (jogo.vidas < 3) {
+    jogo.vidas++;
+    jogo.vidaAtual = TIROS_POR_VIDA;
+  }
+  // Sai do modo chefe → volta para fases normais
+  jogo.chefeAtivo = false;
+  jogo.chefe = null;
+  jogo.avisoChefeMostrado = false;
+  // Reposiciona nave
+  jogador.x = TELA_BASE_LARGURA / 2 - jogador.largura / 2;
+  jogador.y = TELA_BASE_ALTURA - 80;
+  jogador.inclinacaoRolamento = 0;
+  jogador.tiros = [];
+  // Limpa tudo
+  inimigos = [];
+  tirosInimigos = [];
+  explosoes = [];
+  itensUpgrade = [];
+  // Cria próxima fase — decide automaticamente: inimigos ou chefe
+  //criarFase();
+  atualizarStatusUI();
+}
+// =====================================================
+// REINICIAR JOGO COMPLETO
+// =====================================================
+function reiniciarJogo() {
+  jogoVitoria = false;
+ 
+  segurandoEspaco = false;
+  if (intervaloTiroTeclado) {
+    clearInterval(intervaloTiroTeclado);
+    intervaloTiroTeclado = null;
+  }
+  segurandoTiro = false;
+  if (intervaloTiroContinuo) {
+    clearInterval(intervaloTiroContinuo);
+    intervaloTiroContinuo = null;
+  }
+  jogo = {
+    pontos: 0,
+    vidas: 3,
+    vidaAtual: TIROS_POR_VIDA,
+    fase: 1,
+    gameOver: false,
+    tipoTiroAtual: TIPOS_TIRO.AMARELO,
+    nivelPoder: 1,
+    danoPorTiro: 1,
+    cadencia: 280,
+    tempoProximoItem: 3000,
+    escudo: null,
+    bombas: 0,
+    chefeAtivo: false,
+    chefe: null,
+    avisoChefeMostrado: false
+  };
+  jogador.x = TELA_BASE_LARGURA / 2 - 25;
+  jogador.y = TELA_BASE_ALTURA - 80;
+  jogador.inclinacaoRolamento = 0;
+  jogador.tiros = [];
+  jogador.podeAtirar = true;
+  inimigos = [];
+  tirosInimigos = [];
+  explosoes = [];
+  itensUpgrade = [];
+  jogoPausado = false;
+  const botao = document.getElementById('botao-pausa');
+  if (botao) botao.innerHTML = '⏸️ Pausa';
+  criarFase();
+  atualizarStatusUI();
+}
+// =====================================================
+// SISTEMA DE ESCUDO
+// =====================================================
+function ativarEscudo() {
+  jogo.escudo = { vidas: 3, raio: 38, opacidade: 1, pulso: 0 };
+  somTiro('ESCUDO');
+  atualizarStatusUI();
+}
+function escudoReceberDano() {
+  if (!jogo.escudo) return false;
+  jogo.escudo.vidas--;
+  somTiro('ESCUDO_DANO');
+  if (jogo.escudo.vidas <= 0) jogo.escudo = null;
+  atualizarStatusUI();
+  return true;
+}
+function desenharEscudo() {
+  if (!jogo.escudo) return;
+  const cx = jogador.x + jogador.largura / 2;
+  const cy = jogador.y + jogador.altura / 2;
+  const esc = jogo.escudo;
+  esc.pulso += 0.1;
+  const brilho = 0.6 + Math.sin(esc.pulso) * 0.15;
+  const raioAtual = esc.raio + Math.sin(esc.pulso * 1.5) * 2;
+  let cor = '#00ccff';
+  if (esc.vidas === 2) cor = '#ffcc00';
+  if (esc.vidas === 1) cor = '#ff4444';
+  ctx.save();
+  ctx.globalAlpha = brilho;
+  ctx.strokeStyle = cor;
+  ctx.lineWidth = 4;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = cor;
+  ctx.beginPath();
+  ctx.arc(cx, cy, raioAtual, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = brilho * 0.4;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, raioAtual - 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+// =====================================================
+// SISTEMA DE BOMBAS
+// =====================================================
+function coletarBomba() {
+  if (jogo.bombas < 3) {
+    jogo.bombas++;
+    atualizarStatusUI();
+  }
+}
+function usarBomba() {
+  if (jogo.bombas <= 0 || jogoPausado || jogo.gameOver || jogoVitoria) return;
+  jogo.bombas--;
+  somTiro('BOMBA');
+  for (let i = inimigos.length - 1; i >= 0; i--) {
+    const inf = inimigos[i];
+    criarExplosao(inf.x + inf.largura / 2, inf.y + inf.altura / 2, 1.5, inf.tipo.cor);
+    somExplosao(1.5);
+    jogo.pontos += inf.tipo.pontos * jogo.fase;
+  }
+  inimigos = [];
+  tirosInimigos = [];
+  atualizarStatusUI();
+}
+// =====================================================
+// EXPLOSÕES
+// =====================================================
+function criarExplosao(x, y, tamanho = 1, cor = '#ffcc00') {
+  const cores = ['#ffcc00','#ff6600','#ff0000','#ffff00','#ff33aa', cor];
+  const qtd = Math.floor(16 * tamanho);
+  const particulas = [];
+  for (let i = 0; i < qtd; i++) {
+    const ang = (Math.PI * 2 / qtd) * i;
+    particulas.push({
+      x, y,
+      vx: Math.cos(ang) * (2 + Math.random() * 2) * tamanho,
+      vy: Math.sin(ang) * (2 + Math.random() * 2) * tamanho,
       cor: cores[Math.floor(Math.random() * cores.length)],
       tamanho: (3 + Math.random() * 4) * tamanho, vida: 1
     });
@@ -775,3 +1365,4 @@ criarPaineis();
 criarFase();
 atualizarStatusUI();
 requestAnimationFrame(loop);
+nesse codigo ao pegar os upgrades de tiro o painel nao muda pra cor do upgrade
