@@ -1,406 +1,777 @@
-// =====================================================
-// CONFIGURAÇÕES BASE
-// =====================================================
-const TELA_BASE_LARGURA = 800;
-const TELA_BASE_ALTURA = 600;
-const MAX_FILAS = 6;
-const FASES_PARA_CHEFE = 5;
-
-const canvas = document.getElementById('tela');
-const ctx = canvas.getContext('2d');
-
-// =====================================================
-// TIPOS
-// =====================================================
-const TIPOS_TIRO = {
-  AMARELO: {nome:'Tiro Reto', cor:'#ffff00', formato:'reto', chave:'AMARELO'},
-  VERDE: {nome:'Tiro Duplo', cor:'#00ff88', formato:'reto', chave:'VERDE'},
-  AZUL: {nome:'Trovão Elétrico', cor:'#00ccff', formato:'trovao', chave:'AZUL'},
-  ROXO: {nome:'Tiro Curvo', cor:'#ff00ff', formato:'curvo', chave:'ROXO'},
-  LARANJA: {nome:'Tiro Explosivo', cor:'#ff8800', formato:'explosivo', chave:'LARANJA'}
-};
-const TIPOS_INIMIGOS = {
-  FRACO: {vidaMax:1, cor:'#66ff66', pontos:10, tamanho:32},
-  NORMAL: {vidaMax:2, cor:'#ffcc00', pontos:25, tamanho:38},
-  FORTE: {vidaMax:4, cor:'#ff6600', pontos:50, tamanho:44}
-};
-const TIPO_ITEM_BOMBA = {ehBomba:true, cor:'#ff3300', nome:'Bomba'};
-const TIPO_ITEM_CORACAO = {ehCoracao:true, cor:'#ff3366', nome:'Vida Completa'};
-const TIPO_ITEM_ESCUDO = {ehEscudo:true, cor:'#00ccff', nome:'Escudo'};
-
-// =====================================================
-// VARIÁVEIS GLOBAIS
-// =====================================================
-const TIROS_POR_VIDA = 5;
-let jogo = {
-  pontos:0, vidas:3, vidaAtual:TIROS_POR_VIDA,
-  fase:1, gameOver:false,
-  tipoTiroAtual:TIPOS_TIRO.AMARELO, nivelPoder:1, danoPorTiro:1,
-  cadencia:280,
-  escudo:null, bombas:0,
-  chefeAtivo:false, chefe:null
-};
-let jogoVitoria = false;
-let teclas = {};
-const jogador = {
-  x:TELA_BASE_LARGURA/2-25, y:TELA_BASE_ALTURA-80,
-  largura:50, altura:50, velocidade:7,
-  tiros:[], podeAtirar:true
-};
-let inimigos = [], tirosInimigos = [], explosoes = [], itensUpgrade = [];
-let ultimoTempo = 0;
-
-// =====================================================
-// AUXILIARES
-// =====================================================
-function colide(a,b) {
-  return a.x < (b.x||0)+(b.largura||0) && a.x+(a.largura||4) > (b.x||0) &&
-         a.y < (b.y||0)+(b.altura||0) && a.y+(a.altura||15) > (b.y||0);
+g) * (2 + Math.random() * 2) * tamanho,
+      cor: cores[Math.floor(Math.random() * cores.length)],
+      tamanho: (3 + Math.random() * 4) * tamanho, vida: 1
+    });
+  }
+  explosoes.push({ particulas, duracao: Math.floor(35 * tamanho) });
 }
-function atualizarStatusUI() {
-  const elPontos = document.getElementById('pontos');
-  const elVidas = document.getElementById('vidas');
-  const elFase = document.getElementById('fase');
-  const elBombas = document.getElementById('qtd-bombas');
-  if(elPontos) elPontos.textContent = jogo.pontos;
-  if(elVidas) elVidas.textContent = jogo.vidas;
-  if(elFase) elFase.textContent = jogo.fase;
-  if(elBombas) elBombas.textContent = jogo.bombas;
-}
-
 // =====================================================
-// EXPLOSÕES
+// ITENS DE UPGRADE
 // =====================================================
-function criarExplosao(x,y,tam=1,cor='#ffcc00') {
-  const cores = ['#ffcc00','#ff6600','#ff0000','#ffff00','#ff33aa',cor];
-  const qtd = Math.floor(16*tam), part = [];
-  for(let i=0;i<qtd;i++) {
-    const ang = (Math.PI*2/qtd)*i;
-    part.push({
-      x,y,
-      vx:Math.cos(ang)*(2+Math.random()*2)*tam,
-      vy:Math.sin(ang)*(2+Math.random()*2)*tam,
-      cor:cores[Math.floor(Math.random()*cores.length)],
-      tamanho:(3+Math.random()*4)*tam, vida:1
-    });
-  }
-  explosoes.push({particulas:part, duracao:Math.floor(35*tam)});
+function criarItemUpgrade() {
+  const todosTipos = [
+    TIPO_ITEM_BOMBA,
+    TIPO_ITEM_CORACAO,
+    TIPO_ITEM_ESCUDO,
+    ...Object.values(TIPOS_TIRO)
+  ];
+  const indice = Math.floor(Math.random() * todosTipos.length);
+  const tipoSorteado = todosTipos[indice];
+  itensUpgrade.push({
+    x: Math.random() * (TELA_BASE_LARGURA - 80) + 40,
+    y: -30,
+    largura: 26,
+    altura: 26,
+    velocidade: 2 + Math.random() * 1.5,
+    tipo: tipoSorteado,
+    piscar: 0
+  });
 }
-function somExplosao() {}
-
+function coletarItemUpgrade(item) {
+  if (item.tipo.ehBomba) {
+    coletarBomba();
+    somColetarBomba();
+    return;
+  }
+  if (item.tipo.ehCoracao) {
+    jogo.vidas = 3;
+    jogo.vidaAtual = TIROS_POR_VIDA;
+    atualizarStatusUI();
+    somColetarCoracao();
+    return;
+  }
+  if (item.tipo.ehEscudo) {
+    ativarEscudo();
+    somColetarEscudo();
+    return;
+  }
+  if (item.tipo.chave === jogo.tipoTiroAtual.chave) {
+    jogo.nivelPoder = Math.min(jogo.nivelPoder + 1, 5);
+    jogo.danoPorTiro = 1 + (jogo.nivelPoder - 1) * 0.5;
+    jogo.cadencia = Math.max(280 - jogo.nivelPoder * 30, 120);
+    somSubirNivel();
+  } else {
+    jogo.tipoTiroAtual = item.tipo;
+    jogo.nivelPoder = 1;
+    jogo.danoPorTiro = 1;
+    jogo.cadencia = 280;
+    somColetarTiro();
+  }
+  atualizarStatusUI();
+}
+// =====================================================
+// DESENHAR JOGADOR — INCLINAÇÃO CORRIGIDA
+// =====================================================
+function desenharJogador() {
+  const cx = jogador.x + jogador.largura / 2;
+  const cy = jogador.y + jogador.altura / 2;
+ 
+  let alvoInclinacao = 0;
+  if (teclas['ArrowLeft']) {
+    alvoInclinacao = -jogador.inclinacaoMax;
+  } else if (teclas['ArrowRight']) {
+    alvoInclinacao = jogador.inclinacaoMax;
+  }
+ 
+  jogador.inclinacaoRolamento += (alvoInclinacao - jogador.inclinacaoRolamento) * jogador.suavidade;
+  ctx.save();
+  ctx.translate(cx, cy);
+  const fatorInclinacao = jogador.inclinacaoRolamento;
+  ctx.transform(1, fatorInclinacao, 0, 1, 0, 0);
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = jogo.tipoTiroAtual.cor;
+  if (spriteNave.complete && spriteNave.naturalWidth > 0) {
+    ctx.drawImage(spriteNave, -25, -25, 50, 50);
+  } else {
+    ctx.fillStyle = '#f5f5f5';
+    ctx.beginPath();
+    ctx.moveTo(0, -24); ctx.lineTo(-6, 18); ctx.lineTo(6, 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#003399';
+    ctx.beginPath();
+    ctx.moveTo(-18, 20); ctx.lineTo(-8, -10); ctx.lineTo(-3, 18); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(18, 20); ctx.lineTo(8, -10); ctx.lineTo(3, 18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = jogo.tipoTiroAtual.cor;
+    ctx.beginPath();
+    ctx.moveTo(0, -18); ctx.lineTo(-3, 12); ctx.lineTo(3, 12); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+ 
+  desenharEscudo();
+ 
+  ctx.strokeStyle = 'rgba(255, 80, 80, 0)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([10, 10]);
+  ctx.beginPath();
+  ctx.moveTo(0, LINHA_NAVE);
+  ctx.lineTo(TELA_BASE_LARGURA, LINHA_NAVE);
+  ctx.stroke();
+  ctx.setLineDash([]);
+ 
+  const lrg = jogador.largura + 10, alt = 6;
+  const x = jogador.x - 5, y = jogador.y - 15;
+  const pct = jogo.vidaAtual / TIROS_POR_VIDA;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y, lrg, alt);
+  let cor = '#00ff00';
+  if (pct <= 0.33) cor = '#ff3333';
+  else if (pct <= 0.66) cor = '#ffcc00';
+  ctx.fillStyle = cor;
+  ctx.shadowBlur = 6;
+  ctx.shadowColor = cor;
+  ctx.fillRect(x, y, lrg * pct, alt);
+  ctx.shadowBlur = 0;
+}
+function desenharInimigo(inf) {
+  const tipo = inf.tipo;
+  const tamanho = tipo.tamanho;
+  const cx = inf.x + inf.largura / 2;
+  const cy = inf.y + inf.altura / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  if (spriteInimigo.complete && spriteInimigo.naturalWidth > 0) {
+    ctx.rotate(Math.PI);
+    ctx.drawImage(spriteInimigo, -tamanho / 2, -tamanho / 2, tamanho, tamanho);
+  } else {
+    ctx.fillStyle = tipo.cor;
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.arc(0, 0, tamanho / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(-6, -4, 4, 0, Math.PI * 2);
+    ctx.arc(6, -4, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(0, 6, 6, 0, Math.PI);
+    ctx.fill();
+  }
+  ctx.restore();
+ 
+  const pct = inf.vida / tipo.vidaMax;
+  const corBarra = pct > 0.5 ? '#00ff00' : pct > 0.25 ? '#ffcc00' : '#ff0000';
+  ctx.fillStyle = '#333';
+  ctx.fillRect(inf.x, inf.y - 10, inf.largura, 5);
+  ctx.fillStyle = corBarra;
+  ctx.fillRect(inf.x, inf.y - 10, inf.largura * pct, 5);
+}
+function desenharTiro(tiro) {
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = tiro.cor;
+  ctx.fillStyle = tiro.cor;
+  ctx.fillRect(tiro.x, tiro.y, 4, 15);
+  ctx.shadowBlur = 0;
+}
+function desenharItemUpgrade(item) {
+  item.piscar += 0.15;
+  const brilho = 0.7 + Math.sin(item.piscar) * 0.3;
+  ctx.save();
+  ctx.translate(item.x + item.largura / 2, item.y + item.altura / 2);
+ 
+  if (item.tipo.ehBomba) {
+    ctx.fillStyle = item.tipo.cor;
+    ctx.globalAlpha = brilho;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = item.tipo.cor;
+    ctx.beginPath();
+    ctx.arc(0, 2, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-2, -12, 4, 8);
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('💣', 0, 3);
+  } else if (item.tipo.ehCoracao) {
+    ctx.fillStyle = item.tipo.cor;
+    ctx.globalAlpha = brilho;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = item.tipo.cor;
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❤️', 0, 2);
+  } else if (item.tipo.ehEscudo) {
+    ctx.strokeStyle = item.tipo.cor;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = brilho;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = item.tipo.cor;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🛡', 0, 1);
+  } else {
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = item.tipo.cor;
+    ctx.globalAlpha = brilho;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = item.tipo.cor;
+    ctx.fillRect(-item.largura / 2, -item.altura / 2, item.largura, item.altura);
+    ctx.restore();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('★', item.x + item.largura / 2, item.y + item.altura / 2);
+    return;
+  }
+  ctx.restore();
+}
+// =====================================================
+// COLISÕES
+// =====================================================
+function colide(a, b) {
+  return a.x < b.x + (b.largura || 0) && a.x + (a.largura || 4) > b.x &&
+         a.y < b.y + (b.altura || 0) && a.y + (a.altura || 15) > b.y;
+}
+function colideItem(a, b) {
+  return a.x < b.x + b.largura && a.x + jogador.largura > b.x &&
+         a.y < b.y + b.altura && a.y + jogador.altura > b.y;
+}
+function receberDano(qtd = 1) {
+  for (let i = 0; i < qtd; i++) {
+    if (escudoReceberDano()) continue;
+   
+    criarExplosao(jogador.x + jogador.largura / 2, jogador.y + jogador.altura / 2, 1.2, '#ffcc00');
+    somExplosao(1.2);
+   
+    jogo.vidaAtual--;
+    while (jogo.vidaAtual <= 0 && jogo.vidas > 0) {
+      jogo.vidas--;
+      jogo.vidaAtual = TIROS_POR_VIDA;
+     
+      jogador.x = TELA_BASE_LARGURA / 2 - jogador.largura / 2;
+      jogador.y = TELA_BASE_ALTURA - 80;
+      jogador.inclinacaoRolamento = 0;
+    }
+   
+    if (jogo.vidas <= 0) {
+      jogo.vidaAtual = 0;
+      jogo.gameOver = true;
+      segurandoEspaco = false;
+      if (intervaloTiroTeclado) clearInterval(intervaloTiroTeclado);
+      segurandoTiro = false;
+      if (intervaloTiroContinuo) clearInterval(intervaloTiroContinuo);
+    }
+  }
+  atualizarStatusUI();
+}
+// =====================================================
+// ATIRAR
+// =====================================================
+function atirar() {
+  if (jogo.gameOver || jogoVitoria || jogoPausado || !jogador.podeAtirar) return;
+  somTiro(jogo.tipoTiroAtual.chave);
+  const tirosPorNivel = jogo.nivelPoder;
+  const espacamento = 12;
+  for (let i = 0; i < tirosPorNivel; i++) {
+    const deslocamentoX = (i - (tirosPorNivel - 1) / 2) * espacamento;
+    jogador.tiros.push({
+      x: jogador.x + jogador.largura / 2 - 2 + deslocamentoX,
+      y: jogador.y,
+      vx: 0,
+      cor: jogo.tipoTiroAtual.cor,
+      formato: jogo.tipoTiroAtual.formato,
+      dano: jogo.danoPorTiro
+    });
+  }
+  jogador.podeAtirar = false;
+  setTimeout(() => jogador.podeAtirar = true, Math.max(jogo.cadencia, 120));
+}
 // =====================================================
 // CHEFE
 // =====================================================
 function criarChefe() {
-  jogo.chefeAtivo = true;
-  const vidaBase = 50 + Math.floor(jogo.fase/FASES_PARA_CHEFE)*15;
-  jogo.chefe = {
-    x: TELA_BASE_LARGURA/2 - 75, y: -100,
-    largura: 150, altura: 80,
-    vida: vidaBase, vidaMax: vidaBase,
-    tempoTiro: 0, direcao: 1
-  };
-}
-function chefeReceberDano(dano) {
-  if(!jogo.chefe) return;
-  jogo.chefe.vida -= dano;
-  if(jogo.chefe.vida <= 0) {
-    criarExplosao(jogo.chefe.x+75, jogo.chefe.y+40, 2, '#ff4444');
-    jogo.pontos += 300 * jogo.fase;
-    jogo.chefeAtivo = false;
-    jogo.chefe = null;
-    jogo.fase++;
-    criarFase();
-    atualizarStatusUI();
-  }
-}
-function atualizarChefe(delta) {
-  if(!jogo.chefeAtivo || !jogo.chefe) return;
-  const ch = jogo.chefe;
-  if(ch.y < 40) { ch.y += 0.8; return; }
-  ch.x += ch.direcao * 1.2;
-  if(ch.x <= 20 || ch.x+ch.largura >= TELA_BASE_LARGURA-20) ch.direcao *= -1;
-  ch.tempoTiro += delta;
-  if(ch.tempoTiro > 1200) {
-    ch.tempoTiro = 0;
-    const qtd = 2 + Math.floor(jogo.fase/FASES_PARA_CHEFE);
-    for(let i=0;i<qtd;i++) {
-      const desv = (i-(qtd-1)/2)*40;
-      tirosInimigos.push({
-        x:ch.x+75+desv, y:ch.y+80, largura:4, altura:12,
-        velocidade:4+jogo.fase*0.2, cor:'#ff4444'
-      });
-    }
-  }
+  jogo.chefeAtivo = true;
+  jogo.chefe = {
+    x: TELA_BASE_LARGURA / 2 - 75,
+    y: -100,
+    largura: 150,
+    altura: 80,
+    vida: 50 + jogo.fase * 10,
+    vidaMax: 50 + jogo.fase * 10,
+    direcao: 1,
+    tempoMovimento: 0,
+    tempoTiro: 0
+  };
 }
 function desenharChefe() {
-  if(!jogo.chefe) return;
-  const ch = jogo.chefe;
-  ctx.fillStyle='#cc2222'; ctx.shadowBlur=12; ctx.shadowColor='#ff4444';
-  ctx.fillRect(ch.x, ch.y, ch.largura, ch.altura);
-  ctx.fillStyle='#ffcc00';
-  ctx.fillRect(ch.x+15, ch.y+15, 30, 30);
-  ctx.fillRect(ch.x+ch.largura-45, ch.y+15, 30, 30);
-  ctx.fillStyle='#222'; ctx.fillRect(ch.x+50, ch.y+45, 50, 15);
-  const pct = ch.vida/ch.vidaMax;
-  ctx.fillStyle='#333'; ctx.fillRect(300,15,200,12);
-  ctx.fillStyle='#ff2222'; ctx.fillRect(300,15,200*pct,12);
-  ctx.fillStyle='#fff'; ctx.font='bold 11px Arial';
-  ctx.fillText('👑 CHEFE', 400, 24);
-  ctx.shadowBlur=0;
+  if (!jogo.chefeAtivo || !jogo.chefe) return;
+  const ch = jogo.chefe;
+ 
+  ctx.fillStyle = '#cc2222';
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = '#ff4444';
+  ctx.fillRect(ch.x, ch.y, ch.largura, ch.altura);
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillRect(ch.x + 15, ch.y + 15, 30, 30);
+  ctx.fillRect(ch.x + ch.largura - 45, ch.y + 15, 30, 30);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(ch.x + 50, ch.y + 45, 50, 15);
+  ctx.shadowBlur = 0;
+ 
+  const barLarg = 200;
+  const barX = TELA_BASE_LARGURA / 2 - barLarg / 2;
+  const barY = 15;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, barLarg, 12);
+  ctx.fillStyle = '#ff2222';
+  ctx.fillRect(barX, barY, barLarg * (ch.vida / ch.vidaMax), 12);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barLarg, 12);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('CHEFE', TELA_BASE_LARGURA / 2, barY + 9);
 }
-
 // =====================================================
-// CRIAR FASE
+// CRIAR FASE — A CADA 5 = CHEFE
 // =====================================================
 function criarFase() {
-  inimigos = []; tirosInimigos = [];
-  if(jogo.fase % FASES_PARA_CHEFE === 0) {
-    if(!jogo.chefeAtivo) criarChefe();
-    return;
-  }
-  jogo.chefeAtivo = false; jogo.chefe = null;
-  const filas = Math.min(3 + Math.floor((jogo.fase-1)/2), MAX_FILAS);
-  const cols = Math.min(5 + Math.floor(jogo.fase/2), 10);
-  for(let l=0; l<filas; l++) {
-    for(let c=0; c<cols; c++) {
-      let tipo;
-      const r = Math.random();
-      if(jogo.fase <= 2) tipo = r<0.7 ? TIPOS_INIMIGOS.FRACO : TIPOS_INIMIGOS.NORMAL;
-      else if(jogo.fase <= 4) tipo = r<0.4 ? TIPOS_INIMIGOS.FRACO : r<0.8 ? TIPOS_INIMIGOS.NORMAL : TIPOS_INIMIGOS.FORTE;
-      else tipo = r<0.2 ? TIPOS_INIMIGOS.FRACO : r<0.6 ? TIPOS_INIMIGOS.NORMAL : TIPOS_INIMIGOS.FORTE;
-      inimigos.push({
-        x:40+c*75, y:40+l*65,
-        largura:tipo.tamanho, altura:tipo.tamanho,
-        vida:tipo.vidaMax+Math.floor(jogo.fase/3), tipo, direcao:1
-      });
-    }
-  }
+  inimigos = [];
+  tirosInimigos = [];
+ 
+  // A cada 5 fases → CHEFE
+  if (jogo.fase % 5 === 0) {
+    if (!jogo.chefeAtivo) {
+      criarChefe();
+    }
+    return;
+  }
+  // FASE NORMAL — INIMIGOS
+  jogo.chefeAtivo = false;
+  jogo.chefe = null;
+  const linhas = 3 + Math.min(jogo.fase - 1, 4);
+  const cols = 5 + Math.min(jogo.fase - 1, 4);
+  const espX = 75, espY = 65, inicioX = 60, inicioY = 40;
+  for (let l = 0; l < linhas; l++) {
+    for (let c = 0; c < cols; c++) {
+      const s = Math.random();
+      let tipo;
+      if (jogo.fase <= 2) {
+        tipo = s < 0.7 ? TIPOS_INIMIGOS.FRACO : TIPOS_INIMIGOS.NORMAL;
+      } else if (jogo.fase <= 4) {
+        tipo = s < 0.45 ? TIPOS_INIMIGOS.FRACO :
+               s < 0.8 ? TIPOS_INIMIGOS.NORMAL : TIPOS_INIMIGOS.FORTE;
+      } else {
+        tipo = s < 0.25 ? TIPOS_INIMIGOS.FRACO :
+               s < 0.55 ? TIPOS_INIMIGOS.NORMAL :
+               s < 0.85 ? TIPOS_INIMIGOS.FORTE : TIPOS_INIMIGOS.CHEFE;
+      }
+      inimigos.push({
+        x: inicioX + c * espX,
+        y: inicioY + l * espY,
+        largura: tipo.tamanho,
+        altura: tipo.tamanho,
+        vida: tipo.vidaMax,
+        tipo: tipo,
+        tempoMovimento: Math.random() * Math.PI * 2,
+        velocidadeX: 0.5 + Math.random() * 1.5,
+        velocidadeY: 0.3 + Math.random() * 0.5,
+        tempoProximoTiro: Math.random() * 2000 + 1000,
+        intervaloTiro: Math.max(1500 + Math.random() * 2000 - jogo.fase * 150, 600)
+      });
+    }
+  }
 }
-
 // =====================================================
-// TIROS DO JOGADOR — COMPLETO E FECHADO
+// ATUALIZAR PAINÉIS
 // =====================================================
-function atualizarTiros(delta) {
-  for(let i = jogador.tiros.length - 1; i >= 0; i--) {
-    const t = jogador.tiros[i];
-    t.y -= 10;
-    if(t.formato === 'curvo') t.vx = Math.sin(t.y/30)*2.5;
-    t.x += t.vx;
-
-    if(t.y < 0 || t.x < 0 || t.x > TELA_BASE_LARGURA) {
-      jogador.tiros.splice(i,1);
-      continue;
-    }
-
-    let acertou = false;
-    for(let j = inimigos.length - 1; j >= 0; j--) {
-      const inf = inimigos[j];
-      if(colide(t, inf)) {
-        acertou = true;
-        inf.vida -= t.dano;
-
-        if(t.formato === 'explosivo') {
-          criarExplosao(t.x, t.y, 1.2, t.cor);
-          for(let k = inimigos.length - 1; k >= 0; k--) {
-            if(k === j) continue;
-            const outro = inimigos[k];
-            const dist = Math.hypot(outro.x+outro.largura/2 - t.x, outro.y+outro.altura/2 - t.y);
-            if(dist < 60) {
-              outro.vida -= t.dano * 0.5;
-              if(outro.vida <= 0) {
-                criarExplosao(outro.x+outro.largura/2, outro.y+outro.altura/2, 0.8, outro.tipo.cor);
-                jogo.pontos += outro.tipo.pontos * jogo.fase;
-                inimigos.splice(k,1);
-              }
-            }
-          }
-        }
-
-        if(inf.vida <= 0) {
-          criarExplosao(inf.x+inf.largura/2, inf.y+inf.altura/2, 1, inf.tipo.cor);
-          jogo.pontos += inf.tipo.pontos * jogo.fase;
-          inimigos.splice(j,1);
-          if(Math.random() < 0.15) itensUpgrade.push({
-            x:inf.x, y:-30, largura:26, altura:26,
-            velocidade:2+Math.random()*1.5,
-            tipo:[TIPO_ITEM_BOMBA,TIPO_ITEM_CORACAO,TIPO_ITEM_ESCUDO][Math.floor(Math.random()*3)]
-          });
-        }
-        break;
-      }
-    }
-
-    if(!acertou && jogo.chefeAtivo && jogo.chefe && colide(t, jogo.chefe)) {
-      acertou = true;
-      chefeReceberDano(t.dano);
-    }
-
-    if(acertou) jogador.tiros.splice(i,1);
-  }
+function atualizarStatusUI() {
+  const elTiro = document.getElementById('status-tiro');
+  if (elTiro) {
+    elTiro.innerHTML =       <span style="color:${jogo.tipoTiroAtual.cor};font-weight:bold">${jogo.tipoTiroAtual.nome}</span>       <div style="font-size:11px;margin-top:2px;">Nível: ${jogo.nivelPoder}/5 | Dano: ${jogo.danoPorTiro.toFixed(1)}x</div>    ;
+  }
+  const elBombas = document.getElementById('qtd-bombas');
+  if (elBombas) elBombas.textContent = jogo.bombas;
+  const elEscudo = document.getElementById('status-escudo');
+  if (elEscudo) {
+    elEscudo.style.display = jogo.escudo ? 'block' : 'none';
+    const elEscudoVidas = document.getElementById('escudo-vidas');
+    if (elEscudoVidas && jogo.escudo) elEscudoVidas.textContent = jogo.escudo.vidas;
+  }
+  const elPontos = document.getElementById('pontos');
+  if (elPontos) elPontos.textContent = jogo.pontos;
+  const elVidas = document.getElementById('vidas');
+  if (elVidas) elVidas.textContent = jogo.vidas;
+  const elFase = document.getElementById('fase');
+  if (elFase) elFase.textContent = jogo.fase;
 }
-
-// =====================================================
-// RESTANTE DO JOGO
-// =====================================================
-function atualizarInimigos(delta) {
-  if(inimigos.length === 0 && !jogo.chefeAtivo && !jogo.gameOver) {
-    jogo.fase++;
-    criarFase();
-    return;
-  }
-  const vel = 0.4 + jogo.fase*0.06;
-  let bateu = false;
-  for(const inf of inimigos) {
-    inf.x += vel * inf.direcao;
-    if(inf.x <= 10 || inf.x+inf.largura >= TELA_BASE_LARGURA-10) bateu = true;
-  }
-  if(bateu) {
-    for(const inf of inimigos) {
-      inf.direcao *= -1;
-      inf.y += 18;
-      if(inf.y+inf.altura >= jogador.y) jogo.gameOver = true;
-    }
-  }
-  if(Math.random() < delta/Math.max(1200, 3000-jogo.fase*180) && inimigos.length>0) {
-    const alvo = inimigos[Math.floor(Math.random()*inimigos.length)];
-    tirosInimigos.push({x:alvo.x+alvo.largura/2-2, y:alvo.y+alvo.altura, largura:4, altura:12, velocidade:3+jogo.fase*0.15, cor:alvo.tipo.cor});
-  }
-}
-function atualizarTirosInimigos() {
-  for(let i=tirosInimigos.length-1; i>=0; i--) {
-    const t = tirosInimigos[i];
-    t.y += t.velocidade;
-    if(t.y > TELA_BASE_ALTURA) { tirosInimigos.splice(i,1); continue; }
-    if(colide(t, jogador)) {
-      tirosInimigos.splice(i,1);
-      jogo.vidaAtual--;
-      if(jogo.vidaAtual<=0) { jogo.vidas--; jogo.vidaAtual=TIROS_POR_VIDA; }
-      if(jogo.vidas<=0) jogo.gameOver=true;
-      atualizarStatusUI();
-    }
-  }
-}
-function atualizarItens() {
-  for(let i=itensUpgrade.length-1; i>=0; i--) {
-    const item = itensUpgrade[i];
-    item.y += item.velocidade;
-    if(item.y > TELA_BASE_ALTURA) { itensUpgrade.splice(i,1); continue; }
-    if(colide(item, jogador)) {
-      if(item.tipo.ehBomba && jogo.bombas<3) jogo.bombas++;
-      if(item.tipo.ehCoracao) { jogo.vidas=3; jogo.vidaAtual=TIROS_POR_VIDA; }
-      if(item.tipo.ehEscudo) jogo.escudo = {vidas:3};
-      itensUpgrade.splice(i,1);
-      atualizarStatusUI();
-    }
-  }
-}
-function atualizarExplosoes() {
-  for(let i=explosoes.length-1; i>=0; i--) {
-    const e = explosoes[i];
-    e.duracao--;
-    for(const p of e.particulas) {
-      p.x += p.vx; p.y += p.vy; p.vida -= 0.03;
-    }
-    if(e.duracao <= 0) explosoes.splice(i,1);
-  }
-}
-function atirar() {
-  if(jogo.gameOver || !jogador.podeAtirar) return;
-  const qtd = jogo.nivelPoder;
-  for(let i=0;i<qtd;i++) {
-    const desl = (i-(qtd-1)/2)*12;
-    jogador.tiros.push({
-      x:jogador.x+25-2+desl, y:jogador.y, vx:0,
-      cor:jogo.tipoTiroAtual.cor, formato:jogo.tipoTiroAtual.formato,
-      dano:jogo.danoPorTiro
-    });
-  }
-  jogador.podeAtirar = false;
-  setTimeout(()=>jogador.podeAtirar=true, Math.max(jogo.cadencia,120));
-}
-
-// =====================================================
-// DESENHO
-// =====================================================
-function desenhar() {
-  ctx.fillStyle='#050b18'; ctx.fillRect(0,0,TELA_BASE_LARGURA,TELA_BASE_ALTURA);
-  ctx.fillStyle='#fff';
-  ctx.fillRect(jogador.x+22, jogador.y, 6, 15);
-  for(const t of jogador.tiros) {
-    ctx.fillStyle=t.cor; ctx.fillRect(t.x, t.y, 4, 15);
-  }
-  for(const t of tirosInimigos) {
-    ctx.fillStyle=t.cor; ctx.fillRect(t.x, t.y, 4, 12);
-  }
-  for(const inf of inimigos) {
-    ctx.fillStyle=inf.tipo.cor;
-    ctx.fillRect(inf.x, inf.y, inf.largura, inf.altura);
-  }
-  desenharChefe();
-  for(const item of itensUpgrade) {
-    ctx.fillStyle=item.tipo.cor;
-    ctx.fillRect(item.x, item.y, item.largura, item.altura);
-  }
-  for(const e of explosoes) {
-    for(const p of e.particulas) {
-      ctx.globalAlpha = p.vida;
-      ctx.fillStyle = p.cor;
-      ctx.fillRect(p.x, p.y, p.tamanho, p.tamanho);
-    }
-    ctx.globalAlpha = 1;
-  }
-  if(jogo.gameOver) {
-    ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,0,800,600);
-    ctx.fillStyle='#fff'; ctx.font='bold 36px Arial'; ctx.textAlign='center';
-    ctx.fillText('FIM DE JOGO', 400, 280);
-    ctx.font='20px Arial';
-    ctx.fillText(`Pontos: ${jogo.pontos}`, 400, 320);
-    ctx.fillText('Pressione ENTER para reiniciar', 400, 360);
-  }
-}
-
-// =====================================================
-// LOOP PRINCIPAL
-// =====================================================
-function loop(timestamp) {
-  const delta = timestamp - ultimoTempo;
-  ultimoTempo = timestamp;
-
-  if(!jogo.gameOver) {
-    if(teclas['ArrowLeft'] || teclas['a']) jogador.x = Math.max(0, jogador.x - jogador.velocidade);
-    if(teclas['ArrowRight'] || teclas['d']) jogador.x = Math.min(TELA_BASE_LARGURA-jogador.largura, jogador.x + jogador.velocidade);
-    atualizarTiros(delta);
-    atualizarInimigos(delta);
-    atualizarChefe(delta);
-    atualizarTirosInimigos();
-    atualizarItens();
-    atualizarExplosoes();
-  }
-  desenhar();
-  requestAnimationFrame(loop);
-}
-
 // =====================================================
 // TECLADO
 // =====================================================
-document.addEventListener('keydown', e => {
-  teclas[e.key] = true;
-  if(e.key === ' ') { e.preventDefault(); atirar(); }
-  if(e.key === 'Enter' && jogo.gameOver) {
-    jogo = {pontos:0, vidas:3, vidaAtual:TIROS_POR_VIDA, fase:1, gameOver:false, tipoTiroAtual:TIPOS_TIRO.AMARELO, nivelPoder:1, danoPorTiro:1, cadencia:280, escudo:null, bombas:0, chefeAtivo:false, chefe:null};
-    jogador.x=375; jogador.y=520; jogador.tiros=[];
-    inimigos=[]; tirosInimigos=[]; explosoes=[]; itensUpgrade=[];
-    criarFase(); atualizarStatusUI();
-  }
+document.addEventListener('keydown', (e) => {
+  teclas[e.key] = true;
+  if (e.key === ' ') {
+    e.preventDefault();
+    iniciarAudio();
+    if (jogo.gameOver) {
+      reiniciarJogo();
+      return;
+    }
+    if (jogoVitoria) {
+      avancarParaProximaFase();
+      return;
+    }
+    if (jogoPausado) {
+      alternarPausa();
+      return;
+    }
+    if (!segurandoEspaco) {
+      segurandoEspaco = true;
+      atirar();
+      intervaloTiroTeclado = setInterval(() => {
+        if (segurandoEspaco && !jogoPausado && !jogo.gameOver && !jogoVitoria) {
+          atirar();
+        }
+      }, Math.max(jogo.cadencia, 120));
+    }
+  }
+  if ((e.key === 'b' || e.key === 'B') && !jogoPausado && !jogo.gameOver && !jogoVitoria) {
+    usarBomba();
+  }
+  if (e.key === 'Escape') {
+    alternarPausa();
+  }
 });
-document.addEventListener('keyup', e => { teclas[e.key] = false; });
-
+document.addEventListener('keyup', (e) => {
+  teclas[e.key] = false;
+  if (e.key === ' ') {
+    segurandoEspaco = false;
+    if (intervaloTiroTeclado) {
+      clearInterval(intervaloTiroTeclado);
+      intervaloTiroTeclado = null;
+    }
+  }
+});
 // =====================================================
-// INICIAR
+// LOOP PRINCIPAL
 // =====================================================
-canvas.width = TELA_BASE_LARGURA;
-canvas.height = TELA_BASE_ALTURA;
+function loop(tempoAtual) {
+  const delta = tempoAtual - ultimoTempo;
+  ultimoTempo = tempoAtual;
+  tempoAcumulado += delta;
+  // Fundo
+  ctx.fillStyle = '#050b18';
+  ctx.fillRect(0, 0, TELA_BASE_LARGURA, TELA_BASE_ALTURA);
+  // Estrelas
+  estrelas.forEach(estrela => {
+    estrela.y += estrela.velocidade;
+    if (estrela.y > TELA_BASE_ALTURA) {
+      estrela.y = -5;
+      estrela.x = Math.random() * TELA_BASE_LARGURA;
+    }
+    ctx.fillStyle = estrela.cor;
+    ctx.globalAlpha = estrela.brilho;
+    ctx.beginPath();
+    ctx.arc(estrela.x, estrela.y, estrela.tamanho, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  // Tela de Pausa
+  if (jogoPausado && !jogo.gameOver && !jogoVitoria) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, TELA_BASE_LARGURA, TELA_BASE_ALTURA);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 42px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('⏸️ JOGO PAUSADO', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2);
+    ctx.font = '20px Arial';
+    ctx.fillText('Pressione ESPAÇO ou clique em Retomar', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 50);
+    requestAnimationFrame(loop);
+    return;
+  }
+  // Game Over
+  if (jogo.gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, TELA_BASE_LARGURA, TELA_BASE_ALTURA);
+    ctx.fillStyle = '#ff3333';
+    ctx.font = 'bold 52px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('💀 GAME OVER', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 - 40);
+    ctx.fillStyle = '#fff';
+    ctx.font = '24px Arial';
+    ctx.fillText(Pontuação: ${jogo.pontos}, TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 10);
+    ctx.fillText(Fase alcançada: ${jogo.fase}, TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 45);
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText('Pressione ESPAÇO para reiniciar', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 90);
+    requestAnimationFrame(loop);
+    return;
+  }
+  // =====================================================
+  // 🏆 TELA DE MISSÃO CUMPRIDA — COM BOTÃO
+  // =====================================================
+  if (jogoVitoria) {
+    const decorrido = Date.now() - tempoVitoria;
+    const brilho = 0.7 + Math.sin(decorrido / 150) * 0.3;
+    ctx.fillStyle = 'rgba(0, 20, 50, 0.90)';
+    ctx.fillRect(0, 0, TELA_BASE_LARGURA, TELA_BASE_ALTURA);
+    ctx.globalAlpha = brilho;
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 52px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏆 MISSÃO CUMPRIDA!', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 - 80);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '24px Arial';
+    ctx.fillText(Pontuação: ${jogo.pontos}, TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 - 20);
+    ctx.fillText(Próxima Fase: ${jogo.fase + 1}, TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 10);
+    ctx.fillStyle = '#90ee90';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText('Clique abaixo para continuar →', TELA_BASE_LARGURA / 2, TELA_BASE_ALTURA / 2 + 60);
+    const btnX = TELA_BASE_LARGURA / 2 - 120;
+    const btnY = TELA_BASE_ALTURA / 2 + 90;
+    const btnLarg = 240;
+    const btnAlt = 55;
+    ctx.fillStyle = '#22aa22';
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#33ff33';
+    if (ctx.roundRect) ctx.roundRect(btnX, btnY, btnLarg, btnAlt, 12);
+    else ctx.fillRect(btnX, btnY, btnLarg, btnAlt);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText('🚀 PRÓXIMA FASE', TELA_BASE_LARGURA / 2, btnY + 35);
+    const cliqueHandler = function(e) {
+      const rect = canvas.getBoundingClientRect();
+      const escalaX = canvas.width / rect.width;
+      const escalaY = canvas.height / rect.height;
+      const clickX = (e.clientX - rect.left) * escalaX;
+      const clickY = (e.clientY - rect.top) * escalaY;
+      if (clickX >= btnX && clickX <= btnX + btnLarg &&
+          clickY >= btnY && clickY <= btnY + btnAlt) {
+        canvas.removeEventListener('click', cliqueHandler);
+        avancarParaProximaFase();
+      }
+    };
+    canvas.addEventListener('click', cliqueHandler);
+    requestAnimationFrame(loop);
+    return;
+  }
+  if (jogoPausado) {
+    requestAnimationFrame(loop);
+    return;
+  }
+  // Movimento do jogador
+  if (teclas['ArrowLeft'] || teclas['a']) {
+    jogador.x -= jogador.velocidade;
+    if (jogador.x < 0) jogador.x = 0;
+  }
+  if (teclas['ArrowRight'] || teclas['d']) {
+    jogador.x += jogador.velocidade;
+    if (jogador.x + jogador.largura > TELA_BASE_LARGURA) {
+      jogador.x = TELA_BASE_LARGURA - jogador.largura;
+    }
+  }
+  // Movimento por toque
+  if (toqueAtivo && areaMovimento) {
+    const rect = areaMovimento.getBoundingClientRect();
+    const centroX = rect.left + rect.width / 2;
+    const maxDesloc = rect.width / 2 - 25;
+    const desloc = (toqueAtivo.x - centroX) / maxDesloc;
+    jogador.x += desloc * jogador.velocidade;
+    jogador.x = Math.max(0, Math.min(TELA_BASE_LARGURA - jogador.largura, jogador.x));
+  }
+  // Atualizar tiros do jogador
+  jogador.tiros = jogador.tiros.filter(tiro => {
+    switch (tiro.formato) {
+      case 'espalhado':
+        tiro.x += tiro.vx;
+        tiro.y -= 9;
+        break;
+      case 'curvo':
+        tiro.vx += Math.sin(tempoAcumulado / 150) * 0.15;
+        tiro.x += tiro.vx;
+        tiro.y -= 10;
+        break;
+      case 'explosivo':
+        tiro.y -= 7;
+        tiro.x += Math.sin(tempoAcumulado / 100) * 1.5;
+        break;
+      default:
+        tiro.y -= 10;
+    }
+    return tiro.y > -20;
+  });
+  // Tiros inimigos
+  tirosInimigos = tirosInimigos.filter(tiro => {
+    tiro.y += 5;
+    return tiro.y < TELA_BASE_ALTURA + 20;
+  });
+  // Atualizar inimigos
+  inimigos.forEach(inf => {
+    inf.tempoMovimento += delta / 1000;
+    inf.x += Math.sin(inf.tempoMovimento * inf.velocidadeX) * 1.5;
+    inf.y += inf.velocidadeY;
+    if (inf.x < 0) inf.x = 0;
+    if (inf.x + inf.largura > TELA_BASE_LARGURA) {
+      inf.x = TELA_BASE_LARGURA - inf.largura;
+    }
+    inf.tempoProximoTiro -= delta;
+    if (inf.tempoProximoTiro <= 0 && inf.y > 0) {
+      tirosInimigos.push({
+        x: inf.x + inf.largura / 2 - 2,
+        y: inf.y + inf.altura,
+        largura: 4,
+        altura: 12,
+        cor: '#ff4444'
+      });
+      inf.tempoProximoTiro = inf.intervaloTiro;
+    }
+    if (inf.y > TELA_BASE_ALTURA) {
+      inf.y = -inf.altura;
+      inf.x = Math.random() * (TELA_BASE_LARGURA - inf.largura);
+    }
+  });
+  // Atualizar chefe
+  if (jogo.chefeAtivo && jogo.chefe) {
+    const ch = jogo.chefe;
+    if (ch.y < 40) {
+      ch.y += 1;
+    } else {
+      ch.tempoMovimento += delta / 1000;
+      ch.x += Math.sin(ch.tempoMovimento * 1.2) * 3;
+      ch.x = Math.max(0, Math.min(TELA_BASE_LARGURA - ch.largura, ch.x));
+      ch.tempoTiro -= delta;
+      if (ch.tempoTiro <= 0) {
+        for (let i = 0; i < 3; i++) {
+          tirosInimigos.push({
+            x: ch.x + ch.largura / 2 - 2,
+            y: ch.y + ch.altura,
+            largura: 5,
+            altura: 15,
+            cor: '#ff0044'
+          });
+        }
+        ch.tempoTiro = 800;
+      }
+    }
+  }
+  // Itens
+  itensUpgrade = itensUpgrade.filter(item => {
+    item.y += item.velocidade;
+    return item.y < TELA_BASE_ALTURA + 40;
+  });
+  jogo.tempoProximoItem -= delta;
+  if (jogo.tempoProximoItem <= 0) {
+    criarItemUpgrade();
+    jogo.tempoProximoItem = 4000 + Math.random() * 3000 - jogo.fase * 200;
+  }
+  // Explosões
+  explosoes = explosoes.filter(exp => {
+    exp.duracao--;
+    exp.particulas.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.1;
+      p.vx *= 0.98;
+    });
+    return exp.duracao > 0;
+  });
+  // ========== COLISÕES ==========
+  // Tiro jogador vs inimigos
+  jogador.tiros = jogador.tiros.filter(tiro => {
+    let acertou = false;
+    for (let i = inimigos.length - 1; i >= 0; i--) {
+      const inf = inimigos[i];
+      if (colide(tiro, inf)) {
+        acertou = true;
+        inf.vida -= tiro.dano;
+        if (inf.vida <= 0) {
+          criarExplosao(inf.x + inf.largura / 2, inf.y + inf.altura / 2, 1, inf.tipo.cor);
+          somExplosao(1);
+          jogo.pontos += inf.tipo.pontos * jogo.fase;
+          inimigos.splice(i, 1);
+          atualizarStatusUI();
+        }
+        break;
+      }
+    }
+    // Tiro vs Chefe
+    if (!acertou && jogo.chefeAtivo && jogo.chefe && colide(tiro, jogo.chefe)) {
+      acertou = true;
+      jogo.chefe.vida -= tiro.dano;
+      if (jogo.chefe.vida <= 0) {
+        criarExplosao(jogo.chefe.x + jogo.chefe.largura / 2, jogo.chefe.y + jogo.chefe.altura / 2, 2, '#ff0044');
+        somExplosao(2);
+        jogo.pontos += 500 * jogo.fase;
+        // ✅ CHEFE DERROTADO → TELA DE VITÓRIA
+        jogo.chefeAtivo = false;
+        jogo.chefe = null;
+        jogoVitoria = true;
+        tempoVitoria = Date.now();
+        atualizarStatusUI();
+      }
+    }
+    return !acertou;
+  });
+  // Tiro inimigo vs jogador
+  tirosInimigos = tirosInimigos.filter(tiro => {
+    if (colide(tiro, jogador)) {
+      receberDano(1);
+      return false;
+    }
+    return true;
+  });
+  // Item vs jogador
+  itensUpgrade = itensUpgrade.filter(item => {
+    if (colideItem(jogador, item)) {
+      coletarItemUpgrade(item);
+      return false;
+    }
+    return true;
+  });
+  // Próxima fase — só quando NÃO há chefe ativo e NÃO está em vitória
+  if (inimigos.length === 0 && !jogo.chefeAtivo && !jogoVitoria) {
+    jogo.fase++;
+    if (jogo.vidas < 3) {
+      jogo.vidas++;
+      jogo.vidaAtual = TIROS_POR_VIDA;
+    }
+    criarFase();
+    atualizarStatusUI();
+  }
+  // ========== DESENHAR TUDO ==========
+  jogador.tiros.forEach(desenharTiro);
+  tirosInimigos.forEach(tiro => {
+    ctx.fillStyle = tiro.cor;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = tiro.cor;
+    ctx.fillRect(tiro.x, tiro.y, tiro.largura, tiro.altura);
+    ctx.shadowBlur = 0;
+  });
+  inimigos.forEach(desenharInimigo);
+  desenharChefe();
+  itensUpgrade.forEach(desenharItemUpgrade);
+  desenharJogador();
+  explosoes.forEach(exp => {
+    exp.particulas.forEach(p => {
+      ctx.fillStyle = p.cor;
+      ctx.globalAlpha = exp.duracao / 40;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.tamanho, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  });
+  requestAnimationFrame(loop);
+}
+// =====================================================
+// INICIAR JOGO
+// =====================================================
+ajustarTela();
+criarEstrelas();
+criarPaineis();
 criarFase();
 atualizarStatusUI();
 requestAnimationFrame(loop);
