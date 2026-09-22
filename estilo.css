@@ -1,154 +1,142 @@
-/* === RESET E BASE === */
+/* ======================================
+   RESET E FUNDO GERAL
+   ====================================== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Arial', sans-serif;
 }
 
 html, body {
+  background-color: #000000;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #020810;
-  -webkit-user-select: none;
-  user-select: none;
-  touch-action: none;
 }
 
-/* === CANVAS === */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+
+/* ======================================
+   TELA DO JOGO
+   ====================================== */
 #tela {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #050b18;
-  border: 2px solid #1a3050;
-  box-shadow: 0 0 30px rgba(0, 100, 200, 0.25);
-  image-rendering: pixelated;
+  background-color: #050b18;
+  display: block;
 }
 
-/* === PAINÉIS LATERAIS === */
+/* ======================================
+   PAINÉIS DE INFORMAÇÕES
+   ====================================== */
 #painel-upgrade,
 #painel-status {
   position: absolute;
-  top: 10px;
-  background: rgba(5, 15, 30, 0.85);
-  border: 1px solid #2a5080;
-  border-radius: 10px;
-  padding: 12px;
-  color: #fff;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
   font-size: 14px;
-  min-width: 160px;
-  box-shadow: 0 0 15px rgba(42, 80, 128, 0.3);
-  z-index: 10;
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(80, 180, 255, 0.3);
 }
 
 #painel-upgrade {
+  top: 10px;
   left: 10px;
 }
 
 #painel-status {
+  top: 10px;
   right: 10px;
+  text-align: right;
 }
 
 .titulo {
   font-weight: bold;
+  margin-bottom: 6px;
+  color: #ffd700;
   font-size: 15px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid #2a5080;
-  padding-bottom: 5px;
-  color: #8cf;
 }
 
-/* === BOTÃO PAUSA === */
-#btn-pausa {
+/* ======================================
+   BOTÃO DE PAUSA
+   ====================================== */
+#botao-pausa {
   position: absolute;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(135deg, #2a5080, #3a70b0);
-  color: #fff;
+  background: linear-gradient(135deg, #2266cc, #3399ff);
+  color: #ffffff;
   border: none;
+  padding: 6px 16px;
   border-radius: 20px;
-  padding: 8px 20px;
-  font-size: 15px;
   font-weight: bold;
   cursor: pointer;
-  z-index: 20;
-  box-shadow: 0 0 10px rgba(60, 150, 255, 0.4);
-  transition: transform 0.2s, box-shadow 0.2s;
+  font-size: 14px;
+  box-shadow: 0 0 10px rgba(50, 150, 255, 0.5);
 }
 
-#btn-pausa:hover {
-  transform: translateX(-50%) scale(1.05);
-  box-shadow: 0 0 15px rgba(60, 150, 255, 0.6);
+#botao-pausa:hover {
+  background: linear-gradient(135deg, #3399ff, #55bbff);
 }
 
-/* === CONTROLES MÓVEIS === */
-#ctrl-movel {
+/* ======================================
+   CONTROLES PARA CELULAR
+   ====================================== */
+#controles-movel {
   position: absolute;
-  bottom: 0;
+  bottom: 10px;
   left: 0;
-  width: 100%;
-  padding: 15px;
+  right: 0;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
+  padding: 0 10px;
   pointer-events: none;
-  z-index: 30;
 }
 
-#area-mv {
+#area-movimento {
   width: 140px;
   height: 140px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 50%;
   position: relative;
   pointer-events: auto;
 }
 
 #alavanca {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #4af, #28d);
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 50%;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 12px rgba(68, 170, 255, 0.7);
+  pointer-events: none;
 }
 
-#b-atirar {
-  width: 110px;
-  height: 110px;
-  background: linear-gradient(135deg, #fa2, #f52);
+#botao-atirar {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #ff2222, #ff6600);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-weight: bold;
-  font-size: 18px;
+  font-size: 16px;
   pointer-events: auto;
-  box-shadow: 0 0 15px rgba(255, 85, 34, 0.5);
+  box-shadow: 0 0 15px rgba(255, 50, 0, 0.5);
 }
 
-#b-bomba {
+#botao-bomba {
   pointer-events: auto;
-}
-
-/* === RESPONSIVIDADE === */
-@media (max-width: 850px) {
-  #painel-upgrade,
-  #painel-status {
-    font-size: 12px;
-    min-width: 130px;
-    padding: 8px;
-  }
-  .titulo {
-    font-size: 13px;
-  }
 }
