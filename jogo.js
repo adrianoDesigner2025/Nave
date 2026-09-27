@@ -782,7 +782,7 @@ function desenharJogador() {
   if (teclas['ArrowLeft']) {
     alvoInclinacao = jogador.inclinacaoMax;
   } else if (teclas['ArrowRight']) {
-    alvoInclinacao = jogador.inclinacaoMax;
+    alvoInclinacao = -jogador.inclinacaoMax;
   }
   
   jogador.inclinacaoRolamento += (alvoInclinacao - jogador.inclinacaoRolamento) * jogador.suavidade;
